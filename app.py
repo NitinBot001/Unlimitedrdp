@@ -1,29 +1,27 @@
 from flask import Flask, request, jsonify
-import pafy
 import yt_dlp
 from googleapiclient.discovery import build
 
-# Set yt-dlp as the backend for pafy
-pafy.set_backend("yt-dlp")
-
-# Your YouTube API key
-API_KEY = "AIzaSyCMdeDSl5K0mye8ARUM1desybHdnFKa9lk"
-
 app = Flask(__name__)
 
-# Function to search YouTube using the API
+# Your YouTube Data API v3 key
+API_KEY = 'AIzaSyCMdeDSl5K0mye8ARUM1desybHdnFKa9lk'
+
 def search_youtube(query):
+    """Search for the YouTube video ID using the YouTube Data API v3."""
     youtube = build('youtube', 'v3', developerKey=API_KEY)
-    request = youtube.search().list(
-        part="id,snippet",
-        maxResults=1,
+    search_response = youtube.search().list(
         q=query,
-        type="video"
-    )
-    response = request.execute()
-    if response['items']:
-        return response['items'][0]['id']['videoId']
-    return None
+        part='id',
+        maxResults=1,
+        type='video'
+    ).execute()
+
+    if 'items' not in search_response or len(search_response['items']) == 0:
+        raise ValueError('No videos found for the query.')
+
+    video_id = search_response['items'][0]['id']['videoId']
+    return video_id
 
 @app.route('/get-audio-url', methods=['POST'])
 def get_audio_url():
@@ -34,22 +32,24 @@ def get_audio_url():
         return jsonify({'error': 'Query is required'}), 400
 
     try:
-        # Use the YouTube API to search for the video ID
+        # Use YouTube API to get video ID
         video_id = search_youtube(query)
-        if not video_id:
-            return jsonify({'error': 'No video found for the given query'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-        # Create a Pafy object using the video ID
-        video = pafy.new(video_id)
-        
-        # Get the best audio stream URL
-        bestaudio = video.getbestaudio()
-        audio_url = bestaudio.url
-        
-        return jsonify({'url': audio_url})
-    
+    ydl_opts = {
+        'format': 'bestaudio',
+        'noplaylist': True,
+        'quiet': True
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+            audio_url = info['url']
+            return jsonify({'url': audio_url})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3000)
+    app.run(debug=True, port=5000)
