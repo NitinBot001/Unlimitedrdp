@@ -1,12 +1,13 @@
 from flask import Flask, request, jsonify
 import yt_dlp
 from googleapiclient.discovery import build
+import os
 
 app = Flask(__name__)
 
-# Your YouTube Data API v3 key
-API_KEY = 'AIzaSyCMdeDSl5K0mye8ARUM1desybHdnFKa9lk'
-COOKIE_FILE = 'youtube_cookies.txt'  # Path to your cookies file
+# Use environment variable for API key (recommended)
+API_KEY = "AIzaSyCMdeDSl5K0mye8ARUM1desybHdnFKa9lk"
+COOKIE_FILE = 'exported_cookies.json'  # Path to your cookies file
 
 def search_youtube(query):
     """Search for the YouTube video ID using the YouTube Data API v3."""
@@ -42,7 +43,7 @@ def get_audio_url():
         'format': 'bestaudio',
         'noplaylist': True,
         'quiet': True,
-        #'cookies': COOKIE_FILE  # Add cookies to yt-dlp options
+        # 'cookies': COOKIE_FILE  # Uncomment if using cookies
     }
 
     try:
@@ -54,4 +55,5 @@ def get_audio_url():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8000)
+    # Make sure to listen on 0.0.0.0 to allow external connections
+    app.run(debug=True, host='0.0.0.0', port=8000)
