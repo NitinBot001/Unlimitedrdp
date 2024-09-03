@@ -6,6 +6,7 @@ app = Flask(__name__)
 
 # Your YouTube Data API v3 key
 API_KEY = 'AIzaSyCMdeDSl5K0mye8ARUM1desybHdnFKa9lk'
+COOKIE_FILE = 'youtube_cookies.txt'  # Path to your cookies file
 
 def search_youtube(query):
     """Search for the YouTube video ID using the YouTube Data API v3."""
@@ -40,7 +41,8 @@ def get_audio_url():
     ydl_opts = {
         'format': 'bestaudio',
         'noplaylist': True,
-        'quiet': True
+        'quiet': True,
+        'cookies': COOKIE_FILE  # Add cookies to yt-dlp options
     }
 
     try:
@@ -52,4 +54,4 @@ def get_audio_url():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=3000)
