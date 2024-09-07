@@ -8,13 +8,16 @@ COOKIES_FILE = 'cookies.txt'
 
 def get_video_url(query):
     ydl_opts = {
-        'cookies': COOKIES_FILE,
-        'quiet': True,
-        'force_generic_extractor': True,
-        'noplaylist': True,
-        'default_search': 'ytsearch',
-        'format': 'bestaudio/best',
+    'cookies': COOKIES_FILE,
+    'youtube_skip_dash_manifest': True,
+    'no_check_certificate': True,
+    'quiet': True,
+    'force_generic_extractor': True,
+    'noplaylist': True,
+    'default_search': 'ytsearch',
+    'format': 'bestaudio/best',
     }
+    
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
