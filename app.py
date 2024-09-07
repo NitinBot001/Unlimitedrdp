@@ -1,59 +1,61 @@
 from flask import Flask, request, jsonify
 import yt_dlp
-from googleapiclient.discovery import build
-import os
 
 app = Flask(__name__)
 
-# Use environment variable for API key (recommended)
-API_KEY = "AIzaSyCMdeDSl5K0mye8ARUM1desybHdnFKa9lk"
-COOKIE_FILE = 'exported_cookies.json'  # Path to your cookies file
-
-def search_youtube(query):
-    """Search for the YouTube video ID using the YouTube Data API v3."""
-    youtube = build('youtube', 'v3', developerKey=API_KEY)
-    search_response = youtube.search().list(
-        q=query,
-        part='id',
-        maxResults=1,
-        type='video'
-    ).execute()
-
-    if 'items' not in search_response or len(search_response['items']) == 0:
-        raise ValueError('No videos found for the query.')
-
-    video_id = search_response['items'][0]['id']['videoId']
-    return video_id
-
-@app.route('/get-audio-url', methods=['POST'])
-def get_audio_url():
-    data = request.json
-    query = data.get('query')
-
-    if not query:
-        return jsonify({'error': 'Query is required'}), 400
-
-    try:
-        # Use YouTube API to get video ID
-        video_id = search_youtube(query)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+# Define a function to extract video metadata using yt-dlp
+def get_video_metadata(search_query, username=None, password=None):
     ydl_opts = {
-        'format': 'bestaudio',
-        'noplaylist': True,
         'quiet': True,
-        # 'cookies': COOKIE_FILE  # Uncomment if using cookies
+        'noplaylist': True,
+        'extract_flat': 'in_playlist',  # Only extract metadata, don't download
+        'format': 'best'
     }
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
-            audio_url = info['url']
-            return jsonify({'url': audio_url})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    # Add login credentials if provided
+    if username and password:
+        ydl_opts.update({
+            'username': username,
+            'password': password
+        })
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        try:
+            # Use yt-dlp to search and get metadata
+            result = ydl.extract_info(f"ytsearch:{search_query}", download=False)
+            
+            if 'entries' in result:
+                # Return metadata of the first search result
+                video = result['entries'][0]
+                return {
+                    'title': video.get('title'),
+                    'id': video.get('id'),
+                    'url': video.get('webpage_url'),
+                    'duration': video.get('duration'),
+                    'uploader': video.get('uploader'),
+                    'view_count': video.get('view_count'),
+                    'like_count': video.get('like_count'),
+                    'description': video.get('description')
+                }
+            else:
+                return {'error': 'No videos found'}
+
+        except Exception as e:
+            return {'error': str(e)}
+
+# Define a route for video search and metadata fetching
+@app.route('/search', methods=['GET'])
+def search_video():
+    query = request.args.get('query')
+    username = request.args.get('username')
+    password = request.args.get('password')
+    
+    if not query:
+        return jsonify({'error': 'Missing query parameter'}), 400
+    
+    # Get video metadata
+    metadata = get_video_metadata(query, username, password)
+    return jsonify(metadata)
 
 if __name__ == '__main__':
-    # Make sure to listen on 0.0.0.0 to allow external connections
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    app.run(host='0.0.0.0', port=5000)
